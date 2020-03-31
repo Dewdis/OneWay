@@ -1,13 +1,19 @@
+# -*- coding: utf-8 -*-
+
+
 import pickle
 import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from file_to_text import file_to_text
+import requests
 
 
 # Login data locations.
 CREDENTIALS_PATH = '../login/credentials.json'
 TOKEN_PATH = '../login/token.pickle'
+YOUTUBE_KEY = file_to_text('../login/youtube_key.txt')
 
 # Usage rights. If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -15,6 +21,18 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 # The ID and range of a spreadsheet.
 SPREADSHEET_ID = '19zkQ7QJvqH4PDiYZQ3ddRPN0sscht17wP4DjM6zjaLA'
 RANGE_NAME = 'A1:E10'
+
+
+def get_youtube_subscribers(channel_id, key):
+    return requests.get('https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + channel_id + '&key=' + key).json()['items'][0]['statistics']['subscriberCount']
+
+
+def get_vk_subscribers(group_id, key):
+    pass
+
+
+def get_telegram_subscribers(channel_id, key):
+    pass
 
 
 def main():
@@ -48,7 +66,7 @@ def main():
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
                                 range=RANGE_NAME).execute()
     values = result.get('values', [])
-    
+
 
     if not values:
         print('ERROR: No data found.')
