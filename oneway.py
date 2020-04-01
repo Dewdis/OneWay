@@ -14,24 +14,26 @@ import requests
 CREDENTIALS_PATH = '../login/credentials.json'
 TOKEN_PATH = '../login/token.pickle'
 YOUTUBE_KEY = file_to_text('../login/youtube_key.txt')
+VK_KEY = file_to_text('../login/vk_key.txt')
 
 # Usage rights. If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a spreadsheet.
 SPREADSHEET_ID = '1Bs-YiO05A6Rb7L-5HPPxJPC6cYwAvTozxGRMEF9v6Q0'
-RANGE_NAME = "'Технические данные'!A2:H100"
+SOURCE_RANGE_NAME = "'Технические данные'!A2:H100"
+OUTPUT_LIST_NAME = 'One Way'
 
 
-def get_youtube_subscribers(channel_id, key):
-    return requests.get('https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + channel_id + '&key=' + key).json()['items'][0]['statistics']['subscriberCount']
+def get_youtube_subscribers(channel_id):
+    return requests.get('https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + channel_id + '&key=' + YOUTUBE_KEY).json()['items'][0]['statistics']['subscriberCount']
 
 
-def get_vk_subscribers(group_id, key):
-    pass
+def get_vk_subscribers(group_id):
+    return requests.get("https://api.vk.com/method/groups.getMembers?group_id=" + group_id + "&v=5.52&&access_token=" + VK_KEY).json()['response']['count']
 
 
-def get_telegram_subscribers(channel_id, key):
+def get_telegram_subscribers(channel_id):
     pass
 
 
@@ -77,7 +79,7 @@ def update_cell(data, cell, sheet):
 def update(sheet):
     # Get data using Technic List in Sheet.
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
-                                range=RANGE_NAME).execute()
+                                range=SOURCE_RANGE_NAME).execute()
     values = result.get('values', [])
 
     data = {}
@@ -86,16 +88,18 @@ def update(sheet):
         print('ERROR: No data found.')
     else:
         for row in values:
+            while len(row) < 4: row.append('')
             print('%s, %s' % (row[0], row[1]))
             title = str(row[0].encode('utf-8'))
             data[title] = {'YT':0, 'VK':0, 'TG':0}
-            if row[1] != '': data[title]['YT'] = get_youtube_subscribers(row[1], YOUTUBE_KEY)
+            if row[1] != '': data[title]['YT'] = get_youtube_subscribers(row[1])
+            if row[2] != '': data[title]['VK'] = get_vk_subscribers(row[2])
+            if row[3] != '': data[title]['TG'] = get_telegram_subscribers(row[3])
 
-    print(data)
 
     # Write data to Public List in Sheet.
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
-                                range="'Подключены к ПО'!A2:H100").execute()
+                                range="'" + OUTPUT_LIST_NAME + "'!A2:H100").execute()
     values = result.get('values', [])
 
     if not values:
@@ -108,9 +112,14 @@ def update(sheet):
             if title in data:
                 data[title]['YT'] = int(str(data[title]['YT']))
                 print(data[title]['YT'])
-                update_cell(data[title]['YT'], "'Подключены к ПО'!C"+str(2+i)+":C"+str(2+i), sheet)
+                data[title]['VK'] = int(str(data[title]['VK']))
+                print(data[title]['VK'])
+                update_cell(data[title]['YT'], "'" + OUTPUT_LIST_NAME + "'!C"+str(2+i)+":C"+str(2+i), sheet)
+                update_cell(data[title]['VK'], "'" + OUTPUT_LIST_NAME + "'!E"+str(2+i)+":E"+str(2+i), sheet)
             else:
-                update_cell(0, "'Подключены к ПО'!C"+str(2+i)+":C"+str(2+i), sheet)
+                update_cell(0, "'" + OUTPUT_LIST_NAME + "'!C"+str(2+i)+":C"+str(2+i), sheet)
+                update_cell(0, "'" + OUTPUT_LIST_NAME + "'!E"+str(2+i)+":E"+str(2+i), sheet)
+
 
 if __name__ == '__main__':
     update(get_sheet())
