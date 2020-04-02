@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 
 
+import sys
+
 import pickle
+
+# Working with files modules.
 import os.path
+from file_to_text import file_to_text
+
+import requests
+
+# Google API modules.
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from file_to_text import file_to_text
-import requests
 
 
 # Login data locations.
@@ -21,28 +28,36 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a spreadsheet.
 SPREADSHEET_ID = '1Bs-YiO05A6Rb7L-5HPPxJPC6cYwAvTozxGRMEF9v6Q0'
-SOURCE_RANGE_NAME = "'Технические данные'!A2:H100"
-OUTPUT_LIST_NAME = 'One Way'
+MAX_RANGE = 'A2:H200'
+SOURCE_RANGE_NAME = "'Технические данные'!" + MAX_RANGE
 
 
+"""Get YouTube channel subscribers count.
+Args:
+    channel_id: ID of YouTube channel.
+Returns:
+    Channel subscribers count.
+"""
 def get_youtube_subscribers(channel_id):
     return requests.get('https://www.googleapis.com/youtube/v3/channels?part=statistics&id=' + channel_id + '&key=' + YOUTUBE_KEY).json()['items'][0]['statistics']['subscriberCount']
 
 
+"""Get VK group subscribers/members count.
+Args:
+    group_id: ID of VK group.
+Returns:
+    Group subscribers/members count.
+"""
 def get_vk_subscribers(group_id):
     return requests.get("https://api.vk.com/method/groups.getMembers?group_id=" + group_id + "&v=5.52&&access_token=" + VK_KEY).json()['response']['count']
 
 
+# TODO
 def get_telegram_subscribers(channel_id):
     pass
 
 
 def get_sheet():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
-
-
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -68,12 +83,46 @@ def get_sheet():
     return sheet
 
 
+def get_range(list, begin, end):
+    return "'" + list + "'!" + begin + ":" + end
+
+
 def update_cell(data, cell, sheet):
     values = [[data]]
     body = { 'values': values }
     result = sheet.values().update(
     spreadsheetId=SPREADSHEET_ID, range=cell,
     valueInputOption='RAW', body=body).execute()
+
+
+def fill_list(list, yt_column, vk_column, tg_column, data, sheet):
+    # Write data to given list in sheet.
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+                                range="'" + list + "'!" + MAX_RANGE).execute()
+    values = result.get('values', [])
+
+    if not values:
+        print('ERROR: No data found.')
+    else:
+        for i in range(len(values)):
+            row = values[i]
+            if len(row) == 0: continue
+            print(row[0])
+            title = str(row[0].encode('utf-8'))
+            if title in data:
+                data[title]['YT'] = int(str(data[title]['YT']))
+                print(data[title]['YT'])
+                data[title]['VK'] = int(str(data[title]['VK']))
+                print(data[title]['VK'])
+                if yt_column != None:
+                    update_cell(data[title]['YT'], get_range(list, yt_column+str(2+i), yt_column+str(2+i)), sheet)
+                if vk_column != None:
+                    update_cell(data[title]['VK'], get_range(list, vk_column+str(2+i), vk_column+str(2+i)), sheet)
+            else:
+                if yt_column != None:
+                    update_cell(0, get_range(list, yt_column+str(2+i), yt_column+str(2+i)), sheet)
+                if vk_column != None:
+                    update_cell(0, get_range(list, vk_column+str(2+i), vk_column+str(2+i)), sheet)
 
 
 def update(sheet):
@@ -97,29 +146,16 @@ def update(sheet):
             if row[3] != '': data[title]['TG'] = get_telegram_subscribers(row[3])
 
 
-    # Write data to Public List in Sheet.
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
-                                range="'" + OUTPUT_LIST_NAME + "'!A2:H100").execute()
-    values = result.get('values', [])
-
-    if not values:
-        print('ERROR: No data found.')
-    else:
-        for i in range(len(values)):
-            row = values[i]
-            print(row[0])
-            title = str(row[0].encode('utf-8'))
-            if title in data:
-                data[title]['YT'] = int(str(data[title]['YT']))
-                print(data[title]['YT'])
-                data[title]['VK'] = int(str(data[title]['VK']))
-                print(data[title]['VK'])
-                update_cell(data[title]['YT'], "'" + OUTPUT_LIST_NAME + "'!C"+str(2+i)+":C"+str(2+i), sheet)
-                update_cell(data[title]['VK'], "'" + OUTPUT_LIST_NAME + "'!E"+str(2+i)+":E"+str(2+i), sheet)
-            else:
-                update_cell(0, "'" + OUTPUT_LIST_NAME + "'!C"+str(2+i)+":C"+str(2+i), sheet)
-                update_cell(0, "'" + OUTPUT_LIST_NAME + "'!E"+str(2+i)+":E"+str(2+i), sheet)
+    if sys.argv[1] == 'main':
+        fill_list('One Way', 'C', 'E', None, data, sheet)
+    elif sys.argv[1] == 'youtube':
+        fill_list('Список каналов в YouTube', 'C', None, None, data, sheet)
+    elif sys.argv[1] == 'vk':
+        fill_list('Список сообществ в VK', None, 'C', None, data, sheet)
+    #fill_list('Список каналов в Telegram', None, None, 'C', data, sheet)
 
 
 if __name__ == '__main__':
+    assert(len(sys.argv) == 2)
+    assert(sys.argv[1] in ['main', 'youtube', 'vk'])
     update(get_sheet())
