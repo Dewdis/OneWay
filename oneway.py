@@ -49,7 +49,14 @@ Returns:
     Group subscribers/members count.
 """
 def get_vk_subscribers(group_id):
-    return requests.get("https://api.vk.com/method/groups.getMembers?group_id=" + group_id + "&v=5.52&&access_token=" + VK_KEY).json()['response']['count']
+    result = 0
+    try:
+        result = requests.get("https://api.vk.com/method/groups.getMembers?group_id=" + group_id + "&v=5.52&&access_token=" + VK_KEY).json()['response']['count']
+    except Exception as e:
+        user_id = group_id
+        result = requests.get("https://api.vk.com/method/users.getFollowers?user_id=" + user_id + "&v=5.52&&access_token=" + VK_KEY).json()['response']['count']
+
+    return result
 
 
 # TODO
