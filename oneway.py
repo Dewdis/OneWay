@@ -125,11 +125,11 @@ def fill_list(list, yt_column, vk_column, tg_column, data, sheet):
                     update_cell(data[title]['YT'], get_range(list, yt_column+str(2+i), yt_column+str(2+i)), sheet)
                 if vk_column != None:
                     update_cell(data[title]['VK'], get_range(list, vk_column+str(2+i), vk_column+str(2+i)), sheet)
-            else:
-                if yt_column != None:
-                    update_cell(0, get_range(list, yt_column+str(2+i), yt_column+str(2+i)), sheet)
-                if vk_column != None:
-                    update_cell(0, get_range(list, vk_column+str(2+i), vk_column+str(2+i)), sheet)
+            #else:
+            #    if yt_column != None:
+            #        update_cell(0, get_range(list, yt_column+str(2+i), yt_column+str(2+i)), sheet)
+            #    if vk_column != None:
+            #        update_cell(0, get_range(list, vk_column+str(2+i), vk_column+str(2+i)), sheet)
 
 
 def update(sheet):
